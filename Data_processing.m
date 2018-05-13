@@ -1,135 +1,164 @@
 tic %starting time
 profile on; %Turn profiler
 addpath('Export_fig'); %Add to path external library
-addpath(genpath('Signals'),'Geometry'); %Add to path file of input data (recursively)
+addpath(genpath('Signals'), 'Geometry', 'Results'); %Add to path file of input data (recursively)
 
-    %Clean the workspace and variables
+%Clean the workspace and variables
 clc; clear variables; close all;
 
-%====================== Intial data set ===================================
+%% ====================== Intial data set =================================
 
-FileName = '12,3Hz 12,8kHz 5N'; %Name of the file with input data
-CoordName = 'CoordinateCompositePanel.xlsx'; %Name of file with cartesian coordinates of points
+% ++ Example ++
+% -------------------------------------------------------------------------
+% FileName: multiple results (find name in 'Results' folder) = {'7Hz 12,8kHz 0,5N Eps=0.8 ExCh:#1', '12,3Hz 12,8kHz 5N Eps=0.8'} 
+%           one channel = {'7Hz 12,8kHz 0,5N'}
+% -------------------------------------------------------------------------
+% ShowOption: multiselect = {'Distortion', 'Lissage', 'TimeSignal'}
+%             one option = {'DistortionFourier'}
+% -------------------------------------------------------------------------
+
+FileName = {'7Hz 12,8kHz 0,5N'}; %Name of the file with input data
+CoordName.Base = 'CoordinateCompositePanel.xlsx'; %Name of file with cartesian coordinates of points
+CoordName.External = 'ExternalCoordinateCompositePanel.xlsx'; %Name of file with cartesian coordinates of external geometry
 Channel = 1; %Data evaluation channel
 ChannelsDelNumb = []; %Define numbers of excluding channels (format: array of number of channel <= see Channels_name)
-ExternalCoordName = 'ExternalCoordinateCompositePanel.xlsx'; %Name of file with cartesian coordinates of external geometry 
-ShowOption = {'Distortion'}; %Show figure params{'TimeSignal', 'Distortion', 'Lissage', 'DistortionFourier'}
+ShowOption = {'Distortion'}; %Show figure params{'TimeSignal', 'Distortion', 'Lissage', 'DistortionFourier'}. When comparing signals of an option of display are inactive
 
-%================ Reading and transformation input data ===================
+%% ====================== Technical input =================================
 
+ContourNumber = 20; %Number of contour lines
+GridDensity = 250; %Number of grid point
+PhysFactor = 1000; %Unit conversation ratio (m -> mm)
+
+%% ================ Reading and transformation input data =================
+
+if length(FileName) == 1 %Check compare mode
+    FileName = FileName{1}; %Correct input format
     %Reading the input data from a file
-load(FileName); %Reading data signal
-Coord_Input = xlsread(CoordName); %Reading cartesian coordinates of points
-Coord_External = xlsread(ExternalCoordName); %Reading cartesian coordinates of external points
-Hz_num = min(strfind(FileName,'Hz')); kHz_num = strfind(FileName,'kHz');
-Hz_string = FileName(1,1:(Hz_num - 1)); kHz_string = FileName(1,min(strfind(FileName,' '))+1:(kHz_num - 1));
-Freq_process = str2double(strrep(Hz_string,',','.')); %Setting the operating frquency, Hz
-Throughp_Freq = str2double(strrep(kHz_string,',','.'))*1000; %Sampling rate
-Period = 1/Freq_process; %Setting the oscillation period, s
-
-MeasurmentNumber = ceil(Period * Throughp_Freq); %Number of measurement points
-Accel_quant = size(Coord_Input,1); %Number of accelerometers
-StartRangeRead = 10; %Start of range reading data
-Rows_range_data = [StartRangeRead; MeasurmentNumber + StartRangeRead - 1]; Cols_range_data = [1; Accel_quant]; %Range reading data
-          
+    load(FileName); %Reading data signal
+    Coord.Base = xlsread(CoordName.Base); %Reading cartesian coordinates of points
+    Coord.External = xlsread(CoordName.External); %Reading cartesian coordinates of external points
+    Hz_num = min(strfind(FileName,'Hz')); kHz_num = strfind(FileName,'kHz');
+    Hz_string = FileName(1,1:(Hz_num - 1)); kHz_string = FileName(1,min(strfind(FileName,' '))+1:(kHz_num - 1));
+    Freq_process = str2double(strrep(Hz_string,',','.')); %Setting the operating frquency, Hz
+    Throughp_Freq = str2double(strrep(kHz_string,',','.'))*1000; %Sampling rate
+    Period = 1/Freq_process; %Setting the oscillation period, s
+    
+    MeasurmentNumber = ceil(Period * Throughp_Freq); %Number of measurement points
+    Accel_quant = size(Coord.Base,1); %Number of accelerometers
+    StartRangeRead = 10; %Start of range reading data
+    Rows_range_data = [StartRangeRead; MeasurmentNumber + StartRangeRead - 1]; Cols_range_data = [1; Accel_quant]; %Range reading data
+    
     %Formation of data arrays
-Signal_time_glob = Signal_0.y_values.values; %Reading the time signal from Signal_0
-Channels_name = Signal_0.function_record.name'; %Reading channel names from Signal_0 
-AccelForce = size(Signal_1.y_values.values,2); %Find quantity the accel. of force
-for i = 1:AccelForce
-    Signal_time_glob(:,Accel_quant + i) = Signal_1.y_values.values(:,i); %Reading the time signal from Signal_1
-    Channels_name{Accel_quant + i} = Signal_1.function_record.name(:,i); %Reading channel names from � Signal_1 
-end
-Cols_range_data(2,1) = Cols_range_data(2,1) + AccelForce; %Add increment
-Signal_time_fix = Signal_time_glob(Rows_range_data(1,1):Rows_range_data(2,1),Cols_range_data(1,1):Cols_range_data(2,1)); %Reading a of the time signal
-X_Coord = Coord_Input(:,3)*1000; Y_Coord = Coord_Input(:,4)*1000; Z_Coord = Coord_Input(:,5)*1000;%Cartesian coordinate of points
-X_CoordExternal = Coord_External(:,3)*1000; Y_CoordExternal = Coord_External(:,4)*1000; Z_CoordExternal = Coord_External(:,5)*1000;%Cartesian coordinate of external points
-for i = 1:length(Channels_name)
-    Channels_name{i} = Channels_name{i}'; %Correct format of Channels_name
-    Channels_name{i} = char(Channels_name{i});
-end
-Time_sim = zeros(MeasurmentNumber,1); %Create array of zeros
-for i = 1:MeasurmentNumber 
-    Time_sim(i,1) = 1/Throughp_Freq*(i-1); %Simulation time array 
-end
-if AccelForce > 1   %Correct format of Channels_name
+    Signal_time_glob = Signal_0.y_values.values; %Reading the time signal from Signal_0
+    Channels_name = Signal_0.function_record.name'; %Reading channel names from Signal_0
+    AccelForce = size(Signal_1.y_values.values,2); %Find quantity the accel. of force
     for i = 1:AccelForce
-        Channels_name{Accel_quant + i} = Channels_name{Accel_quant + i}'; %Last AccelForce
-    end    
-end
-
-    %Exclude selected channels
-if ChannelsDelNumb 
-    ChannelsDelNumb = sort(ChannelsDelNumb,'descend'); %Sort excluding array
-    Accel_quant = Accel_quant - length(ChannelsDelNumb); %Correct numbers of accelerometers
-    Cols_range_data(2) = Accel_quant; %Correct range of data
-    for i = 1:length(ChannelsDelNumb) %Correct input data  
-        X_Coord(ChannelsDelNumb(i)) = []; Y_Coord(ChannelsDelNumb(i)) = []; Z_Coord(ChannelsDelNumb(i)) = []; 
-        Channels_name(ChannelsDelNumb(i)) = [];
-        Signal_time_fix(:,ChannelsDelNumb(i)) = [];
+        Signal_time_glob(:,Accel_quant + i) = Signal_1.y_values.values(:,i); %Reading the time signal from Signal_1
+        Channels_name{Accel_quant + i} = Signal_1.function_record.name(:,i); %Reading channel names from � Signal_1
     end
-end
-clear i Hz_num Hz_string kHz_num kHz_string Signal_0 Signal_1...
-    Coord_Input Signal_time_glob; %Delete the intermediate variables
-
-%========================= Calculating ====================================
-
+    Cols_range_data(2,1) = Cols_range_data(2,1) + AccelForce; %Add increment
+    Signal_time_fix = Signal_time_glob(Rows_range_data(1,1):Rows_range_data(2,1),Cols_range_data(1,1):Cols_range_data(2,1)); %Reading a of the time signal
+    X_Coord.Base = Coord.Base(:,3)*PhysFactor; Y_Coord.Base = Coord.Base(:,4)*PhysFactor; Z_Coord.Base = Coord.Base(:,5)*PhysFactor;%Cartesian coordinate of points
+    X_Coord.External = Coord.External(:,3)*PhysFactor; Y_Coord.External = Coord.External(:,4)*PhysFactor; Z_Coord.External = Coord.External(:,5)*PhysFactor;%Cartesian coordinate of external points
+    for i = 1:length(Channels_name)
+        Channels_name{i} = Channels_name{i}'; %Correct format of Channels_name
+        Channels_name{i} = char(Channels_name{i});
+    end
+    Time_sim = zeros(MeasurmentNumber,1); %Create array of zeros
+    for i = 1:MeasurmentNumber
+        Time_sim(i,1) = 1/Throughp_Freq*(i-1); %Simulation time array
+    end
+    if AccelForce > 1   %Correct format of Channels_name
+        for i = 1:AccelForce
+            Channels_name{Accel_quant + i} = Channels_name{Accel_quant + i}'; %Last AccelForce
+        end
+    end
+    
+    %Exclude selected channels
+    if ChannelsDelNumb
+        ChannelsDelNumb = sort(ChannelsDelNumb,'descend'); %Sort excluding array
+        Accel_quant = Accel_quant - length(ChannelsDelNumb); %Correct numbers of accelerometers
+        Cols_range_data(2) = Accel_quant; %Correct range of data
+        for i = 1:length(ChannelsDelNumb) %Correct input data
+            X_Coord.Base(ChannelsDelNumb(i)) = []; Y_Coord.Base(ChannelsDelNumb(i)) = []; Z_Coord.Base(ChannelsDelNumb(i)) = [];
+            Channels_name(ChannelsDelNumb(i)) = [];
+            Signal_time_fix(:,ChannelsDelNumb(i)) = [];
+        end
+    end
+    
+    %% ========================= Calculating ==================================
+    
     %Interpolate time signal
-h = Period/10^3; %Time step
-Time_int = (0:h:Period)'; %Grid for interpolation
-Signal_ch_int = interp1(Time_sim,Signal_time_fix,Time_int,'spline','extrap'); %Interpolating the input time signal
+    h = Period/10^3; %Time step
+    Time_int = (0:h:Period)'; %Grid for interpolation
+    Signal_ch_int = interp1(Time_sim,Signal_time_fix,Time_int,'spline','extrap'); %Interpolating the input time signal
     
     %Separation of harmonics
-DistortionFourierLength = floor(5000/Freq_process); %Harmonics number
-EpsCoeffForce = 0.8; %Accuracy coefficient
-Freq_fourier = 2*pi/Period; %Fourier frequency
-FSeries = Fourier_series(Signal_ch_int, Time_int, Period, Cols_range_data, DistortionFourierLength, 1);
-Signal_fourier_coeffs = FSeries{1}; Signal_fourier = FSeries{2}; Signal_fourier_PhaseShift = FSeries{3};
-a0 = Signal_fourier_coeffs(2,:); %First fourier coefficient
-a = Signal_fourier_coeffs(3:DistortionFourierLength+2,:); %Fourier cosinus coefficients
-b = Signal_fourier_coeffs(DistortionFourierLength+3:size(Signal_fourier_coeffs,1),:); %Fourier sinus coefficients
-
-FSeries_fix = Fourier_series_fix(a0, a, b, EpsCoeffForce, Time_int, Freq_fourier, DistortionFourierLength); %Call FSerires function
-%Signal_fourier_fix = FSeries_fix{1};
-MaxSignal_fourier_fix = FSeries_fix{2}; %Format output data
-cFixIndex = FSeries_fix{3};
-for p = 1:size(a,2)
-s = 1; %Intial number of increment
-   for i = 1:length(cFixIndex{end})
-        aFix(s,p) = a(cFixIndex{end}(i),p); %Fix fourier coeffs on force accel.
-        bFix(s,p) = b(cFixIndex{end}(i),p);
-        s = s + 1; %Increment
-   end
-   for k = 1:length(Time_int) 
-        t = Time_int(k); %Current time
-        Signal_fourier_fix(k,p) = a0(1,p) + aFix(:,p)'*cos(t*Freq_fourier.*cFixIndex{end}) + bFix(:,p)'*sin(t*Freq_fourier.*cFixIndex{end}); %Full fourier series
-   end 
-end
-clear a0 a b FSeries FSeries_fix h Signal_fourier_coeffs Signal_time_fix Time_sim ...
-    aFix bFix cFixIndex; %Delete the intermediate variables
- 
+    DistortionFourierLength = floor(5000/Freq_process); %Harmonics number
+    EpsCoeffForce.Base = 0.8; %Accuracy coefficient
+    Freq_fourier = 2*pi/Period; %Fourier frequency
+    FSeries = Fourier_series(Signal_ch_int, Time_int, Period, Cols_range_data, DistortionFourierLength, 1);
+    Signal_fourier_coeffs = FSeries{1}; Signal_fourier = FSeries{2}; Signal_fourier_PhaseShift = FSeries{3};
+    a0 = Signal_fourier_coeffs(2,:); %First fourier coefficient
+    a = Signal_fourier_coeffs(3:DistortionFourierLength+2,:); %Fourier cosinus coefficients
+    b = Signal_fourier_coeffs(DistortionFourierLength+3:size(Signal_fourier_coeffs,1),:); %Fourier sinus coefficients
+    
+    FSeries_fix = Fourier_series_fix(a0, a, b, EpsCoeffForce.Base, Time_int, Freq_fourier, DistortionFourierLength); %Call FSerires function
+    %Signal_fourier_fix = FSeries_fix{1};
+    MaxSignal_fourier_fix = FSeries_fix{2}; %Format output data
+    cFixIndex = FSeries_fix{3};
+    for p = 1:size(a,2)
+        s = 1; %Intial number of increment
+        for i = 1:length(cFixIndex{end})
+            aFix(s,p) = a(cFixIndex{end}(i),p); %Fix fourier coeffs on force accel.
+            bFix(s,p) = b(cFixIndex{end}(i),p);
+            s = s + 1; %Increment
+        end
+        for k = 1:length(Time_int)
+            t = Time_int(k); %Current time
+            Signal_fourier_fix(k,p) = a0(1,p) + aFix(:,p)'*cos(t*Freq_fourier.*cFixIndex{end}) + bFix(:,p)'*sin(t*Freq_fourier.*cFixIndex{end}); %Full fourier series
+        end
+    end
+    
     %Calculating of twists
-for i = Cols_range_data(1):Cols_range_data(2) 
-    Distortion(:,i) = Signal_ch_int(:,i) - Signal_fourier_fix(:,i); %Finding the twist vector !TODO! - Last force accel.
-    MaxDistortion(i,:) = max(abs(Distortion(:,i)))/max(abs(Signal_fourier_fix(:))); %Maximum of distortions
-end
-
+    for i = Cols_range_data(1):Cols_range_data(2)
+        Distortion(:,i) = Signal_ch_int(:,i) - Signal_fourier_fix(:,i); %Finding the twist vector !TODO! - Last force accel.
+        MaxDistortion(i,:) = max(abs(Distortion(:,i)))/max(abs(Signal_fourier_fix(:))); %Maximum of distortions
+    end
+    
     %Fourier series for distortion
-FSeries = Fourier_series(Distortion, Time_int, Period, Cols_range_data, DistortionFourierLength, 0); %Call Fourier_series function
-Distortion_fourier_coeffs = FSeries{1}; Distortion_fourier = FSeries{2}; %Result
-a0 = Distortion_fourier_coeffs(2,:); %First fourier coefficient
-a = Distortion_fourier_coeffs(3:DistortionFourierLength+2,:); %Fourier cosinus coefficients
-b = Distortion_fourier_coeffs(DistortionFourierLength+3:size(Distortion_fourier_coeffs,1),:); %Fourier sinus coefficients
-
-EpsCoeff = 1e-1; %Accuracy coefficient
-FSeries_fix = Fourier_series_fix(a0, a, b, EpsCoeff, Time_int, Freq_fourier, DistortionFourierLength); %Call FSerires function
-Distortion_fourier_fix = FSeries_fix{1}; %MaxDistortion_fourier_fix = FSeries_fix{2}; %Format output data
-for p = 1:size(Distortion_fourier_fix,2) 
-    MaxDistortion_fourier_fix(p,:) = sum(abs(Distortion_fourier_fix(:,p))); %Average sum
+    FSeries = Fourier_series(Distortion, Time_int, Period, Cols_range_data, DistortionFourierLength, 0); %Call Fourier_series function
+    Distortion_fourier_coeffs = FSeries{1}; Distortion_fourier = FSeries{2}; %Result
+    a0 = Distortion_fourier_coeffs(2,:); %First fourier coefficient
+    a = Distortion_fourier_coeffs(3:DistortionFourierLength+2,:); %Fourier cosinus coefficients
+    b = Distortion_fourier_coeffs(DistortionFourierLength+3:size(Distortion_fourier_coeffs,1),:); %Fourier sinus coefficients
+    
+    EpsCoeffForce.Fourier = 1e-1; %Accuracy coefficient
+    FSeries_fix = Fourier_series_fix(a0, a, b, EpsCoeffForce.Fourier, Time_int, Freq_fourier, DistortionFourierLength); %Call FSerires function
+    Distortion_fourier_fix = FSeries_fix{1}; %MaxDistortion_fourier_fix = FSeries_fix{2}; %Format output data
+    for p = 1:size(Distortion_fourier_fix,2)
+        MaxDistortion_fourier_fix(p,:) = sum(abs(Distortion_fourier_fix(:,p))); %Average sum
+    end
+    %Reduction of distortions from force sensor
+    MaxDistortion_fix = MaxDistortion(1:Accel_quant,:); %Base
+    MaxDistortion_fourier_fix = MaxDistortion_fourier_fix(1:Accel_quant,:); %Fourier
+    
+    %% ========================= SAVING RESULTS ===============================
+    
+    %Assign filename for results
+    OutputFileName.Base = CreateOutputFileName(FileName, ChannelsDelNumb, EpsCoeffForce.Base);
+    OutputFileName.Fourier = CreateOutputFileName(FileName, ChannelsDelNumb, EpsCoeffForce.Fourier);
+    %Save base distortion field (non-mesh)
+    OutputOperate(['Results/', OutputFileName.Base], 'Distortion.txt', [X_Coord.Base, Y_Coord.Base, MaxDistortion_fix], 'w');
+else
+    ShowOption = {'Compare'}; %Compare mode
+    %Read contour cartesian coordinates
+    Coord.External = xlsread(CoordName.External); %Reading cartesian coordinates of external points
+    X_Coord.External = Coord.External(:,3)*PhysFactor; Y_Coord.External = Coord.External(:,4)*PhysFactor; Z_Coord.External = Coord.External(:,5)*PhysFactor;%Cartesian coordinate of external points
 end
-clear i a0 a b FSeries_fix; %Delete the intermediate variables
 
-%========================= DISPLAYING RESULTS =============================
+%% ========================= DISPLAYING RESULTS ===========================
 
 for i = 1:length(ShowOption)
     switch ShowOption{i}
@@ -157,20 +186,10 @@ for i = 1:length(ShowOption)
         case 'Distortion' %Display of distortion field
             Fig2 = figure(2); %Create a graphic window
             Fig2.Color = [1 1 1]; %Set color of figure
-            MaxDistortion_fix = MaxDistortion(1:Accel_quant,:); %Reduction of distortions from force sensor
-            Sign = -1; %Sign of coordinate
-            x = X_Coord; y = Sign*Y_Coord; z = MaxDistortion_fix; %Surface construction matrix
-            xExt = X_CoordExternal; yExt = Sign*Y_CoordExternal;
-            if prod(yExt == 0), yExt = Sign*Z_CoordExternal; end %Check zero coordinate (inverse if)
-            if prod(y == 0), y = Sign*Z_Coord; end %Check zero coordinate (inverse if)
-            F = scatteredInterpolant(x,y,z);
-            F.Method = 'natural';
-            NPoint = 250; %Number of points in grid
-            [xq,yq] = meshgrid(linspace(min(xExt),max(xExt),NPoint),linspace(min(yExt),max(yExt),NPoint)); %Calculating grid
-            zq = F(xq,yq); %Creating a interpolated function
-            contourf(xq,yq,zq,20); %Plot a contour lines
+            [X_Mesh, Y_Mesh, Z_Mesh] = MeshAndInterpolate2D(X_Coord, Y_Coord, MaxDistortion_fix, GridDensity); %Mesh grid and interpolate resulting function
+            contourf(X_Mesh, Y_Mesh, Z_Mesh, ContourNumber); %Plot a contour lines
             hold on; %Plot in one axes
-            plot(x,y,'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', 'black',...
+            plot(X_Coord.Base,Y_Coord.Base,'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', 'black',...
                 'MarkerEdgeColor', 'none', 'Markersize', 10);
             title('Distortion field','Fontsize', 17); %Title of graphic
             xlabel('x, mm', 'Fontsize', 16, 'BackgroundColor', 'w');
@@ -184,27 +203,19 @@ for i = 1:length(ShowOption)
                 'Callback', @Save_figure, 'Parent', Fig2, 'units', 'normalized');
             Screen_size = get(0, 'ScreenSize'); %Get screen size
             Fig2.Position = [0 0 Screen_size(3) Screen_size(4)];
-            EpsNum2StringTemp = num2str(EpsCoeffForce);
-            if EpsNum2StringTemp == fix(EpsNum2StringTemp) %Check decimal format
-                EpsNum2string = EpsNum2StringTemp;
-            else
-                EpsNum2string = strrep(num2str(EpsCoeffForce),'.',','); %Transleting numberic to string format
-            end
-            guidata(Fig2, {FileName strcat(' EpsForce = ', EpsNum2string) Pushbutton1}); %Transfering local variables to callback function
-            InverseContour(xExt,yExt); %Inverse contour filling
-            plot(xExt, yExt,'LineWidth', 2,'Color','r') %Plot external contour
-            CreateLabelsCompositePanel(x, y, Channels_name); %Create lables for points
+            guidata(Fig2, {OutputFileName.Base Pushbutton1}); %Transfering local variables to callback function
+            InverseContour(X_Coord.External,Y_Coord.External); %Inverse contour filling
+            plot(X_Coord.External, Y_Coord.External,'LineWidth', 2,'Color','r') %Plot external contour
+            CreateLabelsCompositePanel(X_Coord.Base, Y_Coord.Base, Channels_name); %Create lables for points
             ax = gca; ax.Box = 1; %Correct axes
-            clear xq yq zq NPoint x y z i F ...
-                EpsNum2string EpsNum2StringTemp; %Delete the intermediate variables
+            
         case 'Lissage' %Pop - up menu for displaying Lissage figure for selected channel
             Fig3 = figure(3); %Create a graphic window
             guidata(Fig3, {Signal_ch_int Signal_fourier_PhaseShift}); %Transfering local variables to callback function
             Popup = uicontrol('Style', 'popup',... %Create popupmenu
                 'String', Channels_name,...
-                'Position', [440 316 115 100],...
-                'Callback', @Select_channel, 'Parent', Fig3,'units','normalized');
-            
+                'Callback', @Select_channel, 'Parent', Fig3, 'units', 'normalized');
+            Popup.Position = [0.78, 0.92, 0.2, 0.06];
             %Display of Lissage figure for the first channel
             plot(Signal_fourier_PhaseShift(:,Channel), Signal_ch_int(:,Channel)); %Plotting of the graphic of twists for selected channel
             grid on; %Mesh display
@@ -216,20 +227,10 @@ for i = 1:length(ShowOption)
         case 'DistortionFourier' %Display of distortion field
             Fig4 = figure(4); %Create a graphic window
             Fig4.Color = [1 1 1]; %Set color of figure
-            MaxDistortion_fourier_fix = MaxDistortion_fourier_fix(1:Accel_quant,:); %Reduction of distortions from force sensor
-            Sign = -1; %Sign of coordinate
-            x = X_Coord; y = Sign*Y_Coord; z = MaxDistortion_fourier_fix; %Surface construction matrix
-            xExt = X_CoordExternal; yExt = Sign*Y_CoordExternal;
-            if prod(yExt == 0), yExt = Sign*Z_CoordExternal; end %Check zero coordinate (inverse if)
-            if prod(y == 0), y = Sign*Z_Coord; end %Check zero coordinate (inverse if)
-            F = scatteredInterpolant(x,y,z);
-            F.Method = 'natural';
-            NPoint = 250; %Number of points in grid
-            [xq,yq] = meshgrid(linspace(min(xExt),max(xExt),NPoint),linspace(min(yExt),max(yExt),NPoint)); %Calculating grid
-            zq = F(xq,yq); %Creating a interpolated function
-            contourf(xq,yq,zq,20); %Plot a contour lines
+            [X_Mesh, Y_Mesh, Z_Mesh] = MeshAndInterpolate2D(X_Coord, Y_Coord, MaxDistortion_fourier_fix, GridDensity); %Mesh grid and interpolate resulting function
+            contourf(X_Mesh, Y_Mesh, Z_Mesh, ContourNumber); %Plot a contour lines
             hold on;
-            plot(x,y,'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', 'black',...
+            plot(X_Coord.Base, Y_Coord.Base,'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', 'black',...
                 'MarkerEdgeColor', 'none', 'Markersize', 10);
             title('Distortion fourier fix field','Fontsize', 17); %Title of graphic
             xlabel('x, mm', 'Fontsize', 16, 'BackgroundColor', 'w');
@@ -243,19 +244,37 @@ for i = 1:length(ShowOption)
                 'Callback', @Save_figure, 'Parent', Fig4, 'units', 'normalized');
             Screen_size = get(0, 'ScreenSize'); %Get screen size
             Fig4.Position = [0 0 Screen_size(3) Screen_size(4)];
-            EpsNum2StringTemp = num2str(EpsCoeff);
-            if EpsNum2StringTemp == fix(EpsNum2StringTemp) %Check decimal format
-                EpsNum2string = EpsNum2StringTemp;
-            else
-                EpsNum2string = strrep(num2str(EpsCoeff),'.',','); %Transleting numberic to string format
-            end
-            guidata(Fig4,  {FileName strcat(' Eps = ', EpsNum2string) Pushbutton2} ); %Transfering local variables to callback function
-            InverseContour(xExt,yExt); %Inverse contour filling
-            plot(xExt, yExt,'LineWidth', 2,'Color','r') %Plot external contour
-            CreateLabelsCompositePanel(x, y, Channels_name); %Create lables for points
+            guidata(Fig4,  {OutputFileName.Fourier Pushbutton2} ); %Transfering local variables to callback function
+            InverseContour(X_Coord.External, Y_Coord.External); %Inverse contour filling
+            plot(X_Coord.External, Y_Coord.External,'LineWidth', 2,'Color','r') %Plot external contour
+            CreateLabelsCompositePanel(X_Coord.Base, Y_Coord.Base, Channels_name); %Create lables for points
             ax = gca; ax.Box = 1; %Correct axes
-            clear xq yq zq x y z NPoint Screen_size F EpsNum2string i Xmax...
-                Xmin Ymax Ymin Pos_char EpsNum2StringTemp; %Delete the intermediate variables
-    end   
+            
+        case 'Compare'
+            SignalNumb = length(FileName); %Number of signals
+            for i = 1:SignalNumb 
+                Signal{i} = OutputOperate('Results', [FileName{i},'/Distortion.txt'], 0, 'r'); %Read signals
+                X_Coord.Base = Signal{i}(:,1); Y_Coord.Base = Signal{i}(:,2);
+                %Calculate mesh for each signal
+                [X_Mesh, Y_Mesh, DistortionSignal{i}] = MeshAndInterpolate2D(X_Coord, Y_Coord, Signal{i}(:,3), GridDensity); %Mesh grid and interpolate resulting function
+            end
+            for i = 1:SignalNumb
+               for j = i+1:SignalNumb 
+                   Fig = figure;
+                   Fig.Color = [1 1 1]; %Set color of figure  
+                   Screen_size = get(0, 'ScreenSize'); %Get screen size
+                   Fig.Position = [0 0 Screen_size(3) Screen_size(4)];
+                   contourf(X_Mesh, Y_Mesh, abs(DistortionSignal{i}-DistortionSignal{j}), ContourNumber); %Plot a contour lines
+                   hold on;
+                   title([FileName{i} ' / ' FileName{j}],'Fontsize', 17); %Title of graphic
+                   xlabel('x, mm', 'Fontsize', 16, 'BackgroundColor', 'w');
+                   ylabel('y, mm', 'Fontsize', 16, 'BackgroundColor', 'w', 'Rotation', 90);
+                   InverseContour(X_Coord.External, Y_Coord.External); %Inverse contour filling
+                   plot(X_Coord.External, Y_Coord.External,'LineWidth', 2,'Color','r') %Plot external contour
+                   cb = colorbar('Fontsize', 15); cb.Label.FontSize = 23; cb.Label.String = '\xi'; %Show gradient of colors
+                   ax = gca; ax.Box = 1; %Correct axes                   
+               end
+            end
+    end
 end
 toc %End of time
