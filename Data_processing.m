@@ -17,7 +17,7 @@ clc; clear variables; close all;
 %             one option = {'DistortionFourier'}
 % -------------------------------------------------------------------------
 
-FileName = {'7Hz 12,8kHz 0,5N'}; %Name of the file with input data
+FileName = {'12,3Hz 12,8kHz 5N'}; %Name of the file with input data
 CoordName.Base = 'CoordinateCompositePanel.xlsx'; %Name of file with cartesian coordinates of points
 CoordName.External = 'ExternalCoordinateCompositePanel.xlsx'; %Name of file with cartesian coordinates of external geometry
 Channel = 1; %Data evaluation channel
