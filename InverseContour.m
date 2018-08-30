@@ -1,7 +1,7 @@
 function InverseContour(xExt, yExt)
 %Inverse contour area (white fill)
 
-Sign = 1; %Derivative sign
+Sign = -1; %Derivative sign
 if sum(yExt < 0) > sum(yExt > 0)
     Sign = -1;
 end
