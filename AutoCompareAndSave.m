@@ -28,11 +28,18 @@ ContourNumber = 20; %Number of contour lines
 GridDensity = 250; %Number of grid point
 PhysFactor = 1000; %Unit conversation ratio (m -> mm)
 
-%% ====================== Calculate =================================
+nColCompare = 2; % Сolumn number of indicies of comparing signals
+nColResidue = 4; % Сolumn number of indicies of residue signals
+ShiftCompareTab = 2; % Row shift of compare tab
+
+%% ================ Reading and transformation input data =================
+
+[~, ~, CompareTab] = xlsread(FileNameCompare); %Reading compare table
 
 RawDir = dir('Results'); %Read content of directory
 dirContent = [{}, RawDir.name]; %Add file names
 isDir = [{}, RawDir.isdir]; %Add directory indicators
+
 % Filter input directories
 for i = length(isDir):-1:3
     if ~isDir{i}
@@ -41,19 +48,92 @@ for i = length(isDir):-1:3
 end
 dirContent(1:2) = []; % Delete technical paths
 
-%Read contour cartesian coordinates
-Coord.External = GetCoordinates(CoordName.External, PhysFactor); %Cartesian coordinate of external points
-[~, ~, CompareTab] = xlsread(FileNameCompare); %Reading compare table
-
-%Sort dir by compare tab
-for i = 2:size(CompareTab, 1)
+% Sort dir by compare tab
+for i = ShiftCompareTab:size(CompareTab, 1)
    for j = 1:length(dirContent)
-      if contains(dirContent{j}, CompareTab{i, 2}) % Index #2: comparing file name 
+      if contains(dirContent{j}, CompareTab{i, nColCompare}) % Index #2: comparing file name 
         dirContentSort{i - 1} = dirContent{j};
       end       
    end       
 end
 
+% Get indices of comparing signal
+k = 0; % Initialize counter
+for i = ShiftCompareTab:size(CompareTab, 1)
+    string = CompareTab{i, nColResidue};
+    if prod(~isnan(string)) % Checking format of string
+        string = strrep(string, ' ', ''); % Parse string
+        while true
+            k = k + 1; % Increase counter
+            endSymbol = strfind(string, ';'); % Find trailing character in a string
+            midSymbol = strfind(string, '-'); % Find delimiter character in a string
+            if isempty(endSymbol) % Checking the end of compraison in a string 
+                endSymbol = length(string) + 1;
+            end
+            indexForCompare(k, :) = [str2num(string(1:midSymbol - 1)), str2num(string(midSymbol + 1:endSymbol - 1))];
+            string = string(endSymbol + 1:end); % Clear string
+            if isempty(string)
+                break;
+            end
+        end
+    end
+end
+
+for FileInd = 1:size(indexForCompare, 1)
+    try
+        firstName = dirContentSort{indexForCompare(FileInd, 1)}; 
+        secondName = dirContentSort{indexForCompare(FileInd, 2)};
+        FileName = {firstName, secondName}; %Correct input format
+        
+% -- Function code ------------------------------------------------------------------------------------------
+        
+        Coord.External = GetCoordinates(CoordName.External, PhysFactor); %Cartesian coordinate of external points
+        SignalNumb = length(FileName); %Number of signals
+        for i = 1:SignalNumb
+            Signal{i} = OutputOperate('Results', [FileName{i},'/Distortion.txt'], 0, 'r'); %Read signals
+            % Slice signal by coordinate number set
+            Coord.Base(:, NumCoordAction(1)) = Signal{i}(:, 1);
+            Coord.Base(:, NumCoordAction(2)) = Signal{i}(:, 2);
+            %Calculate mesh for each signal
+            [X_Mesh, Y_Mesh, DistortionSignal{i}] = MeshAndInterpolate2D(Coord, Signal{i}(:, 3),...
+                GridDensity, NumCoordAction); %Mesh grid and interpolate resulting function
+        end
+        Screen_size = get(0, 'ScreenSize'); %Get screen size
+        for i = 1:SignalNumb
+            for j = i+1:SignalNumb
+                Fig = figure(i + j);
+                Fig.Color = [1 1 1]; %Set color of figure
+                OutputFileName = [FileName{i} ' \ ' FileName{j}]; %Assign filename for results
+                contourf(X_Mesh, Y_Mesh, abs(DistortionSignal{i} - DistortionSignal{j}), ContourNumber); %Plot a contour lines
+                hold on;
+                title(OutputFileName, 'Fontsize', 17); %Title of graphic
+                xlabel('x, mm', 'Fontsize', 16, 'BackgroundColor', 'w');
+                ylabel('y, mm', 'Fontsize', 16, 'BackgroundColor', 'w', 'Rotation', 90);
+                InverseContour(Coord.External(:, NumCoordAction(1)), Coord.External(:, NumCoordAction(2))); %Inverse contour filling
+                plot(Coord.External(:, NumCoordAction(1)), Coord.External(:, NumCoordAction(2)), 'LineWidth', 2,'Color','r') %Plot external contour
+                cb = colorbar('Fontsize', 15); cb.Label.FontSize = 23; cb.Label.String = '\xi'; %Show gradient of colors
+                PushbuttonCompare = uicontrol('Style', 'pushbutton',... %Create popupmenu
+                    'String', 'Save figure',...
+                    'Position', [485 7 70 20],...
+                    'Callback', @Save_figure, 'Parent', Fig, 'units', 'normalized');
+                Fig.Position = [0 0 Screen_size(3) Screen_size(4)];
+                guidata(Fig,  {OutputFileName PushbuttonCompare} ); %Transfering local variables to callback function
+                ax = gca; ax.Box = 1; %Correct axes
+                
+                % --- Autosave figure ----------------------------------------------------------------------
+                
+                PushbuttonCompare.Callback(Fig, []); %Autosave figure
+                close(Fig); %Close figure
+                
+                % ------------------------------------------------------------------------------------------
+            end
+        end
+    catch
+        disp(['The file: ', FileName, ' can not be saved']); %Exception
+    end
+end
+
+toc %End of time
 
 
 
