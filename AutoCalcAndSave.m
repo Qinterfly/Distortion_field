@@ -11,13 +11,14 @@ clc; clear variables; close all;
 CoordName.Base = 'CoordinateWingPanel.xlsx'; %Name of file with cartesian coordinates of points
 CoordName.External = 'ExternalCoordinateWingPanel.xlsx'; %Name of file with cartesian coordinates of external geometry
 ChannelsDelNumb = []; %Define numbers of excluding channels (format: array of number of channel <= see Channels_name)
-NumCoordAction = [1, 3]; % Number of coordinates for distortion calculation (X == 1, Y == 2, Z == 3)
+CoordActionNum = [1, -3]; % Number of coordinates for distortion calculation (X == 1, Y == 2, Z == 3)
 
 %% ====================== Technical input =================================
 
 ContourNumber = 20; %Number of contour lines
 GridDensity = 250; %Number of grid point
 PhysFactor = 1000; %Unit conversation ratio (m -> mm)
+FillContourSign = -1; % Derivative sign of fill contour
 
 %% ================ Reading and transformation input data =================
 
@@ -28,12 +29,12 @@ for FileInd = 1:length(DirContent)
     try
         FileName = DirContent{FileInd}(1:strfind(DirContent{FileInd}, '.mat') - 1); %Correct input format
         
-% -- Function code ------------------------------------------------------------------------------------------
-
+        % -- Function code ------------------------------------------------------------------------------------------
+        
         %Reading the input data from a file
         load(FileName); %Reading data signal
-        Coord.Base = GetCoordinates(CoordName.Base, PhysFactor); %Cartesian coordinate of inner points
-        Coord.External = GetCoordinates(CoordName.External, PhysFactor); %Cartesian coordinate of external points
+        Coord.Base = GetCoordinates(CoordName.Base, PhysFactor, CoordActionNum); %Cartesian coordinate of inner points
+        Coord.External = GetCoordinates(CoordName.External, PhysFactor, CoordActionNum); %Cartesian coordinate of external points
         Hz_num = min(strfind(FileName,'Hz')); kHz_num = strfind(FileName,'kHz');
         Hz_string = FileName(1, 1:(Hz_num - 1)); kHz_string = FileName(1, min(strfind(FileName,' '))+1:(kHz_num - 1));
         Freq_process = str2double(strrep(Hz_string, ',', '.')); %Setting the operating frquency, Hz
@@ -81,6 +82,7 @@ for FileInd = 1:length(DirContent)
                 Signal_time_fix(:, ChannelsDelNumb(i)) = [];
             end
         end
+        AbsCoordActionNum = abs(CoordActionNum); % Absolute value of coordinates numbers
         
         %% ========================= Calculating ==================================
         
@@ -131,8 +133,13 @@ for FileInd = 1:length(DirContent)
         
         EpsCoeffForce.Fourier = 1e-1; %Accuracy coefficient
         FSeries_fix = Fourier_series_fix(a0, a, b, EpsCoeffForce.Fourier, Time_int, Freq_fourier, DistortionFourierLength); %Call FSerires function
+        Distortion_fourier_fix = FSeries_fix{1}; %MaxDistortion_fourier_fix = FSeries_fix{2}; %Format output data
+        for p = 1:size(Distortion_fourier_fix,2)
+            MaxDistortion_fourier_fix(p,:) = sum(abs(Distortion_fourier_fix(:,p))); %Average sum
+        end
         %Reduction of distortions from force sensor
         MaxDistortion_fix = MaxDistortion(1:Accel_quant,:); %Base
+        MaxDistortion_fourier_fix = MaxDistortion_fourier_fix(1:Accel_quant,:); %Fourier
         
         %% ========================= SAVING RESULTS ===============================
         
@@ -140,17 +147,17 @@ for FileInd = 1:length(DirContent)
         OutputFileName.Base = CreateOutputFileName(FileName, ChannelsDelNumb, EpsCoeffForce.Base);
         OutputFileName.Fourier = CreateOutputFileName(FileName, ChannelsDelNumb, EpsCoeffForce.Fourier);
         %Save base distortion field (non-mesh)
-        OutputOperate(['Results/', OutputFileName.Base], 'Distortion.txt', [Coord.Base(:,NumCoordAction(1)),...
-            Coord.Base(:,NumCoordAction(2)), MaxDistortion_fix], 'w');
+        OutputOperate(['Results/', OutputFileName.Base], 'Distortion.txt', [Coord.Base(:, abs(CoordActionNum(1))),...
+            Coord.Base(:, abs(CoordActionNum(2))), MaxDistortion_fix], 'w');
         
         %% ========================= DISPLAYING RESULTS ===========================
         
-        Fig1 = figure; %Create a graphic window
-        Fig1.Color = [1 1 1]; %Set color of figure
-        [X_Mesh, Y_Mesh, Z_Mesh] = MeshAndInterpolate2D(Coord, MaxDistortion_fix, GridDensity, NumCoordAction); %Mesh grid and interpolate resulting function
+        Fig2 = figure(2); %Create a graphic window
+        Fig2.Color = [1 1 1]; %Set color of figure
+        [X_Mesh, Y_Mesh, Z_Mesh] = MeshAndInterpolate2D(Coord, MaxDistortion_fix, GridDensity, AbsCoordActionNum); %Mesh grid and interpolate resulting function
         contourf(X_Mesh, Y_Mesh, Z_Mesh, ContourNumber); %Plot a contour lines
         hold on; %Plot in one axes
-        plot(Coord.Base(:, NumCoordAction(1)), Coord.Base(:, NumCoordAction(2)), 'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', 'black',...
+        plot(Coord.Base(:, AbsCoordActionNum(1)), Coord.Base(:, AbsCoordActionNum(2)), 'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', 'black',...
             'MarkerEdgeColor', 'none', 'Markersize', 10);
         title('Distortion field','Fontsize', 17); %Title of graphic
         xlabel('x, mm', 'Fontsize', 16, 'BackgroundColor', 'w');
@@ -161,19 +168,20 @@ for FileInd = 1:length(DirContent)
         Pushbutton1 = uicontrol('Style', 'pushbutton',... %Create popupmenu
             'String', 'Save figure',...
             'Position', [485 7 70 20],...
-            'Callback', @Save_figure, 'Parent', Fig1, 'units', 'normalized');
+            'Callback', @Save_figure, 'Parent', Fig2, 'units', 'normalized');
         Screen_size = get(0, 'ScreenSize'); %Get screen size
-        Fig1.Position = [0 0 Screen_size(3) Screen_size(4)];
-        guidata(Fig1, {OutputFileName.Base Pushbutton1}); %Transfering local variables to callback function
-        InverseContour(Coord.External(:, NumCoordAction(1)), Coord.External(:, NumCoordAction(2))); %Inverse contour filling
-        plot(Coord.External(:, NumCoordAction(1)), Coord.External(:, NumCoordAction(2)), 'LineWidth', 2,'Color','r') %Plot external contour
-        CreateLabelsCompositePanel(Coord.Base(:, NumCoordAction(1)), Coord.Base(:, NumCoordAction(2)), Channels_name); %Create lables for points
-        ax = gca; ax.Box = 1; %Correct axes 
-
-% ------------------------------------------------------------------------------------------------------------
-        Pushbutton1.Callback(Fig1, []); %Autosave figure
-        close(Fig1); %Close figure
-%         disp(['The file: ', FileName, ' saved successfully']); %Exception
+        Fig2.Position = [0 0 Screen_size(3) Screen_size(4)];
+        guidata(Fig2, {OutputFileName.Base Pushbutton1}); %Transfering local variables to callback function
+        InverseContour(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), FillContourSign); %Inverse contour filling
+        plot(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), 'LineWidth', 2,'Color','r') %Plot external contour
+        CreateLabelsCompositePanel(Coord.Base(:, AbsCoordActionNum(1)), Coord.Base(:, AbsCoordActionNum(2)), Channels_name); %Create lables for points
+        ax = gca; ax.Box = 1; %Correct axes
+        
+        % ------------------------------------------------------------------------------------------------------------
+        
+        Pushbutton1.Callback(Fig2, []); %Autosave figure
+        close(Fig2); %Close figure
+        disp(['The file: ', FileName, ' saved successfully']); %Exception
     catch
         disp(['The file: ', FileName, ' can not be saved']); %Exception
     end

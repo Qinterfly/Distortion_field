@@ -10,7 +10,7 @@ clc; clear variables; close all;
 
 % ++ Example ++
 % -------------------------------------------------------------------------
-% FileName: multiple results (find name in 'Results' folder) = {'7Hz 12,8kHz 0,5N Eps=0.8 ExCh:#1', '12,3Hz 12,8kHz 5N Eps=0.8'} 
+% FileName: multiple results (find name in 'Results' folder) = {'7Hz 12,8kHz 0,5N Eps=0.8 ExCh:#1', '12,3Hz 12,8kHz 5N Eps=0.8'}
 %           one channel = {'7Hz 12,8kHz 0,5N'}
 % -------------------------------------------------------------------------
 % ShowOption: multiselect = {'Distortion', 'Lissage', 'TimeSignal'}
@@ -20,13 +20,14 @@ clc; clear variables; close all;
 CoordName.Base = 'CoordinateWingPanel3.xlsx'; %Name of file with cartesian coordinates of points
 CoordName.External = 'ExternalCoordinateWingPanel.xlsx'; %Name of file with cartesian coordinates of external geometry
 FileNameCompare = 'CompareWing.xlsx'; % Name of file with compare numbers
-NumCoordAction = [1, 3]; % Number of coordinates for distortion calculation (X == 1, Y == 2, Z == 3)
+CoordActionNum = [1, -3]; % Number of coordinates for distortion calculation (X == 1, Y == 2, Z == 3)
 
 %% ====================== Technical input =================================
 
 ContourNumber = 20; %Number of contour lines
 GridDensity = 250; %Number of grid point
 PhysFactor = 1000; %Unit conversation ratio (m -> mm)
+FillContourSign = -1; % Derivative sign of fill contour
 
 nColCompare = 2; % Сolumn number of indicies of comparing signals
 nColResidue = 4; % Сolumn number of indicies of residue signals
@@ -50,11 +51,11 @@ dirContent(1:2) = []; % Delete technical paths
 
 % Sort dir by compare tab
 for i = ShiftCompareTab:size(CompareTab, 1)
-   for j = 1:length(dirContent)
-      if contains(dirContent{j}, CompareTab{i, nColCompare}) % Index #2: comparing file name 
-        dirContentSort{i - 1} = dirContent{j};
-      end       
-   end       
+    for j = 1:length(dirContent)
+        if contains(dirContent{j}, CompareTab{i, nColCompare}) % Index #2: comparing file name
+            dirContentSort{i - 1} = dirContent{j};
+        end
+    end
 end
 
 % Get indices of comparing signal
@@ -67,7 +68,7 @@ for i = ShiftCompareTab:size(CompareTab, 1)
             k = k + 1; % Increase counter
             endSymbol = strfind(string, ';'); % Find trailing character in a string
             midSymbol = strfind(string, '-'); % Find delimiter character in a string
-            if isempty(endSymbol) % Checking the end of compraison in a string 
+            if isempty(endSymbol) % Checking the end of compraison in a string
                 endSymbol = length(string) + 1;
             end
             indexForCompare(k, :) = [str2num(string(1:midSymbol - 1)), str2num(string(midSymbol + 1:endSymbol - 1))];
@@ -81,26 +82,29 @@ end
 
 for FileInd = 1:size(indexForCompare, 1)
     try
-        firstName = dirContentSort{indexForCompare(FileInd, 1)}; 
+        firstName = dirContentSort{indexForCompare(FileInd, 1)};
         secondName = dirContentSort{indexForCompare(FileInd, 2)};
         FileName = {firstName, secondName}; %Correct input format
         
-% -- Function code ------------------------------------------------------------------------------------------
+        % -- Function code ------------------------------------------------------------------------------------------
         
-        Coord.External = GetCoordinates(CoordName.External, PhysFactor); %Cartesian coordinate of external points
+        AbsCoordActionNum = abs(CoordActionNum); % Absolute value of coordinates numbers
+        Coord.External = GetCoordinates(CoordName.External, PhysFactor, CoordActionNum); %Cartesian coordinate of external points
+        
+        % +++
         SignalNumb = length(FileName); %Number of signals
         for i = 1:SignalNumb
             Signal{i} = OutputOperate('Results', [FileName{i},'/Distortion.txt'], 0, 'r'); %Read signals
             % Slice signal by coordinate number set
-            Coord.Base(:, NumCoordAction(1)) = Signal{i}(:, 1);
-            Coord.Base(:, NumCoordAction(2)) = Signal{i}(:, 2);
+            Coord.Base(:, AbsCoordActionNum(1)) = Signal{i}(:, 1);
+            Coord.Base(:, AbsCoordActionNum(2)) = Signal{i}(:, 2);
             %Calculate mesh for each signal
             [X_Mesh, Y_Mesh, DistortionSignal{i}] = MeshAndInterpolate2D(Coord, Signal{i}(:, 3),...
-                GridDensity, NumCoordAction); %Mesh grid and interpolate resulting function
+                GridDensity, AbsCoordActionNum); %Mesh grid and interpolate resulting function
         end
         Screen_size = get(0, 'ScreenSize'); %Get screen size
         for i = 1:SignalNumb
-            for j = i+1:SignalNumb
+            for j = i + 1:SignalNumb
                 Fig = figure(i + j);
                 Fig.Color = [1 1 1]; %Set color of figure
                 OutputFileName = [FileName{i} ' \ ' FileName{j}]; %Assign filename for results
@@ -109,8 +113,8 @@ for FileInd = 1:size(indexForCompare, 1)
                 title(OutputFileName, 'Fontsize', 17); %Title of graphic
                 xlabel('x, mm', 'Fontsize', 16, 'BackgroundColor', 'w');
                 ylabel('y, mm', 'Fontsize', 16, 'BackgroundColor', 'w', 'Rotation', 90);
-                InverseContour(Coord.External(:, NumCoordAction(1)), Coord.External(:, NumCoordAction(2))); %Inverse contour filling
-                plot(Coord.External(:, NumCoordAction(1)), Coord.External(:, NumCoordAction(2)), 'LineWidth', 2,'Color','r') %Plot external contour
+                InverseContour(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), FillContourSign); %Inverse contour filling
+                plot(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), 'LineWidth', 2,'Color','r') %Plot external contour
                 cb = colorbar('Fontsize', 15); cb.Label.FontSize = 23; cb.Label.String = '\xi'; %Show gradient of colors
                 PushbuttonCompare = uicontrol('Style', 'pushbutton',... %Create popupmenu
                     'String', 'Save figure',...

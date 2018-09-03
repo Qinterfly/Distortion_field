@@ -1,4 +1,4 @@
-function Coord = GetCoordinates(CoordName, PhysFactor)
+function Coord = GetCoordinates(CoordName, PhysFactor, CoordActionNum)
 % Get coordinates from input .xlsx file
 
 [~, ~, CoordInput] = xlsread(CoordName); %Reading cartesian coordinates of points
@@ -13,6 +13,12 @@ end
 
 % Cartesian coordinates of accel
 Coord = cell2mat(CoordInput(2:end, NumColumnCoord:NumColumnCoord + 2)) * PhysFactor;
+% Change sign of coordinates
+for i = 1:length(CoordActionNum)
+    if CoordActionNum(i) < 0
+        Coord(:, abs(CoordActionNum(i))) = -Coord(:, abs(CoordActionNum(i)));
+    end
+end
 
 end
 
