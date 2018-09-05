@@ -1,5 +1,6 @@
-function OutputFileName = CreateOutputFileName(InputFileName, ChannelsDelNumb, EpsCoeff)
+function OutputFileName = CreateOutputFileName(InputFileName, ChannelsDelNumb, EpsCoeff, Dir)
 
+InputFileName = strrep(InputFileName, Dir, ''); % Delete path from filename
 %Correct EpsCoeff format
 EpsNum2StringTemp = num2str(EpsCoeff);
 if EpsNum2StringTemp == fix(EpsNum2StringTemp) %Check decimal format

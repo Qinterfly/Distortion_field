@@ -1,4 +1,6 @@
-function Result = Fourier_series_fix(a0, a, b, EpsCoeff, Time_int, Freq_fourier, DistortionFourierLength)
+function Result = FourierSeriesFix(a0, a, b, EpsCoeff, Time_int, FreqFourier, DistortionFourierLength)
+% Evalute fourier series for interpolated signal
+
 c = sqrt(a.*a + b.*b); %Summary fourier coefficients
 [cSortTemp cSortIndexTemp] = sort(abs(c), 'descend'); %Sort arrays of sinus fourier coefficients
 
@@ -30,15 +32,15 @@ for p = 1:length(cSort)
 end
 
     %Calculate fix fourier series for time vector
-Distortion_fourier_fix = zeros(length(Time_int),length(cSort)); %Create empty array
-MaxDistortion_fourier_fix = zeros(length(cSort)-1,1); %Create empty array
+DistortionFourierFix = zeros(length(Time_int),length(cSort)); %Create empty array
+MaxDistortionFourierFix = zeros(length(cSort)-1,1); %Create empty array
 for p = 1:length(cSort)    
     for k = 1:length(Time_int) 
         t = Time_int(k); %Current time
-        Distortion_fourier_fix(k,p) = a0(p) + aFix{p}'*cos(t*Freq_fourier*cFixIndex{p}) + bFix{p}'*sin(t*Freq_fourier*cFixIndex{p}); %Full fourier series
+        DistortionFourierFix(k,p) = a0(p) + aFix{p}'*cos(t*FreqFourier*cFixIndex{p}) + bFix{p}'*sin(t*FreqFourier*cFixIndex{p}); %Full fourier series
     end
-    MaxDistortion_fourier_fix(p,:) = max(abs(Distortion_fourier_fix(:,p))); %Maximum of distortions
-    %MaxDistortion_fourier_fix(p,:) = sum(abs(Distortion_fourier_fix(:,p))); %Average sum
+    MaxDistortionFourierFix(p,:) = max(abs(DistortionFourierFix(:,p))); %Maximum of distortions
+    %MaxDistortionFourierFix(p,:) = sum(abs(DistortionFourierFix(:,p))); %Average sum
 end
-    Result = {Distortion_fourier_fix, MaxDistortion_fourier_fix cFixIndex};
+    Result = {DistortionFourierFix, MaxDistortionFourierFix cFixIndex};
 end

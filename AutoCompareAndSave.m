@@ -17,7 +17,6 @@ clc; clear variables; close all;
 %             one option = {'DistortionFourier'}
 % -------------------------------------------------------------------------
 
-CoordName.Base = 'CoordinateWingPanel3.xlsx'; %Name of file with cartesian coordinates of points
 CoordName.External = 'ExternalCoordinateWingPanel.xlsx'; %Name of file with cartesian coordinates of external geometry
 FileNameCompare = 'CompareWing.xlsx'; % Name of file with compare numbers
 CoordActionNum = [1, -3]; % Number of coordinates for distortion calculation (X == 1, Y == 2, Z == 3)
@@ -37,17 +36,7 @@ ShiftCompareTab = 2; % Row shift of compare tab
 
 [~, ~, CompareTab] = xlsread(FileNameCompare); %Reading compare table
 
-RawDir = dir('Results'); %Read content of directory
-dirContent = [{}, RawDir.name]; %Add file names
-isDir = [{}, RawDir.isdir]; %Add directory indicators
-
-% Filter input directories
-for i = length(isDir):-1:3
-    if ~isDir{i}
-        dirContent(i) = []; %Add file names
-    end
-end
-dirContent(1:2) = []; % Delete technical paths
+[dirContent, isDir] = GetDirContent('Results/WingPanel', '-d'); % Get directory content and ID by type of file
 
 % Sort dir by compare tab
 for i = ShiftCompareTab:size(CompareTab, 1)
@@ -81,7 +70,7 @@ for i = ShiftCompareTab:size(CompareTab, 1)
 end
 
 for FileInd = 1:size(indexForCompare, 1)
-    try
+%     try
         firstName = dirContentSort{indexForCompare(FileInd, 1)};
         secondName = dirContentSort{indexForCompare(FileInd, 2)};
         FileName = {firstName, secondName}; %Correct input format
@@ -132,9 +121,9 @@ for FileInd = 1:size(indexForCompare, 1)
                 % ------------------------------------------------------------------------------------------
             end
         end
-    catch
-        disp(['The file: ', FileName, ' can not be saved']); %Exception
-    end
+%    catch
+%        disp(['The file: ', FileName, ' can not be saved']); %Exception
+%    end
 end
 
 toc %End of time

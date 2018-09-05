@@ -1,7 +1,11 @@
 function Coord = GetCoordinates(CoordName, PhysFactor, CoordActionNum)
 % Get coordinates from input .xlsx file
 
-[~, ~, CoordInput] = xlsread(CoordName); %Reading cartesian coordinates of points
+if isfile(CoordName)
+    [~, ~, CoordInput] = xlsread(CoordName); %Reading cartesian coordinates of points
+else
+    error(['Geometry file: ', CoordName, ' is not found.']);
+end
 
 % Find number of X coordinate column
 for j = 1:size(CoordInput, 2)

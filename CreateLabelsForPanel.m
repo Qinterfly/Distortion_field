@@ -1,4 +1,4 @@
-function CreateLabelsCompositePanel(x, y, Channels_name)
+function CreateLabelsForPanel(x, y, Channels_name)
 
 Xmax = max(x); Ymax = max(y); %Finding maximal element of array
 Xmin = min(x); Ymin = min(y); %Finding minimal element of array
