@@ -171,7 +171,7 @@ if strcmp(ModeCalculate, 'Compare') || strcmp(ModeCalculate, 'AutoCompare')
     
     for i = 1:FileNameSize(1)
         for j = 1:FileNameSize(2) - 1
-            OutputFileName = [FileName{i} ' | ' FileName{j}]; %Assign filename for results
+            OutputFileName = [FileName{i, j} ' | ' FileName{i, j + 1}]; %Assign filename for results
             [FigCompare, PushbuttonCompare] = PlotCompareDistortion(Coord, XMesh, YMesh, abs(DistortionSignal{i, j} - DistortionSignal{i, j + 1}),...
                 OutputFileName, ScreenSize, ContourNumber, FillContourSign, AbsCoordActionNum);
             % Save distortion field in AutoCompare mode
