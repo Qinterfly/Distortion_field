@@ -3,13 +3,16 @@
 %
 % Contributors: Lakiza Pavel, Zhukov Egor
 % Version: 0.6
-% Changes: - Fixed bugs with: input files format, number of accel sensors.          
+% Changes: - Fixed bugs with 
+%               
+%          
 %                                                                        
 % =========================================================================
 
-tic % Start timer
-% profile on; % Turn profiler
-clc; clear variables; close all; % Clean the workspace and variables
+tic %starting time
+% profile on; %Turn profiler
+% Clean the workspace and variables
+clc; clear variables; close all;
 
 %% ===================== Read-write constants =============================
 

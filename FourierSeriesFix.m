@@ -1,46 +1,47 @@
 function Result = FourierSeriesFix(a0, a, b, EpsCoeff, Time_int, FreqFourier, DistortionFourierLength)
 % Evalute fourier series for interpolated signal
 
-c = sqrt(a.*a + b.*b); %Summary fourier coefficients
-[cSortTemp cSortIndexTemp] = sort(abs(c), 'descend'); %Sort arrays of sinus fourier coefficients
+nSignals = size(a, 2); % Number of signals
+c = sqrt(a .* a + b .* b); % Summary fourier coefficients
+[cSort, cSortIndex] = sort(abs(c), 'descend'); %Sort arrays of sinus fourier coefficients
 
-    %Create a structure for saving sorted coeffictints 0
-for i = 1:size(cSortTemp,2)
-    cSort{i} = cSortTemp(:,i);
-    cSortIndex{i} = cSortIndexTemp(:,i);
-    Eps(i,1) = max(cSort{i})*EpsCoeff; %Cutting off threshold
+% Create a structure for saving sorted coeffictints (reshaping)
+for i = 1:nSignals % for all signals
+    Eps(i, 1) = max(cSort(:, i)) * EpsCoeff; %Cutting off threshold
 end
 
-    %Fix summary fourier coefficient   
-for p = 1:length(cSort)
-j = 1; %Intial value of counter    
+% Fix summary fourier coefficient by Eps
+for j = 1:nSignals % for all signals
+    k = 1; % Intial value of counter    
     for i = 1:DistortionFourierLength
-        if cSort{p}(i,1) >= Eps(p,1)
-            cFix{p}(j,1) = cSort{p}(i,1); 
-            j = j + 1;    
+        if cSort(i, j) >= Eps(j, 1) % Find elements, and its' indexices, greater that epsilon
+            cFix{j}(k, 1) = cSort(i, j); % Value of coefficient
+            cFixIndex{j}(k, 1) = cSortIndex(i, j); % Index of permutation    
+            k = k + 1; % Increase counter
         end
     end
-cFixIndex{p} = sort(cSortIndex{p}(1:j-1,1)); %Sort index of permutation    
 end
 
-    %Fix input fourier coefficients  
-for p = 1:length(cSort)
-    for k = 1:length(cFixIndex{p})
-        aFix{p}(k,1) = a(cFixIndex{p}(k,1),p);   
-        bFix{p}(k,1) = b(cFixIndex{p}(k,1),p);  
+% Fix input fourier coefficients  
+for j = 1:nSignals
+    for k = 1:length(cFixIndex{j})
+        aFix{j}(k, 1) = a(cFixIndex{j}(k, 1), j);   
+        bFix{j}(k, 1) = b(cFixIndex{j}(k, 1), j);  
     end
 end
 
-    %Calculate fix fourier series for time vector
-DistortionFourierFix = zeros(length(Time_int),length(cSort)); %Create empty array
-MaxDistortionFourierFix = zeros(length(cSort)-1,1); %Create empty array
-for p = 1:length(cSort)    
+% Calculate fix fourier series for time vector
+DistortionFourierFix = zeros(length(Time_int), nSignals); % Create empty array
+MaxDistortionFourierFix = zeros(nSignals, 1); % Create empty array
+for j = 1:nSignals    
     for k = 1:length(Time_int) 
-        t = Time_int(k); %Current time
-        DistortionFourierFix(k,p) = a0(p) + aFix{p}'*cos(t*FreqFourier*cFixIndex{p}) + bFix{p}'*sin(t*FreqFourier*cFixIndex{p}); %Full fourier series
+        t = Time_int(k); % Current time
+        DistortionFourierFix(k, j) = a0(j) + aFix{j}' * cos(t * FreqFourier * cFixIndex{j}) + bFix{j}' * sin(t * FreqFourier * cFixIndex{j}); % Full fourier series
     end
-    MaxDistortionFourierFix(p,:) = max(abs(DistortionFourierFix(:,p))); %Maximum of distortions
-    %MaxDistortionFourierFix(p,:) = sum(abs(DistortionFourierFix(:,p))); %Average sum
+    MaxDistortionFourierFix(j, :) = max(abs(DistortionFourierFix(:, j))); % Maximum of distortions
+    % MaxDistortionFourierFix(j, :) = sum(abs(DistortionFourierFix(:, j))); % Average sum
 end
-    Result = {DistortionFourierFix, MaxDistortionFourierFix cFixIndex};
+
+Result = {DistortionFourierFix, MaxDistortionFourierFix, cFixIndex}; % Write results in one variable
+
 end

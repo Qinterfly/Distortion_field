@@ -12,6 +12,9 @@ Ye = linspace(min(Coord.External(:, CoordActionNum(2))), max(Coord.External(:, C
 
 % Calculate function on new grid
 Z_Mesh = FuncInterp(X_Mesh, Y_Mesh); %Creating a interpolated function
+if isempty(Z_Mesh) % Check plane exsistence
+   error('Points should not lie on one line. Please, change numbers of coordinate axes in the variable CoordActionNum.');
+end
 
 end
 

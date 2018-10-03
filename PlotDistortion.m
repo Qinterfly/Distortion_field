@@ -25,7 +25,7 @@ guidata(Fig, {OutputFileName.Base Pushbutton}); %Transfering local variables to 
 InverseContour(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), FillContourSign); %Inverse contour filling
 plot(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), 'LineWidth', 2,'Color','r') %Plot external contour
 if ~isempty(ChannelsName)
-   CreateLabelsForPanel(Coord.Base(:, AbsCoordActionNum(1)), Coord.Base(:, AbsCoordActionNum(2)), ChannelsName); %Create lables for points 
+   CreateContourLabels(Coord.Base(:, AbsCoordActionNum(1)), Coord.Base(:, AbsCoordActionNum(2)), ChannelsName); %Create lables for points 
 end
 ax = gca; ax.Box = 1; %Correct axes
             
