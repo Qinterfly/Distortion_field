@@ -1,9 +1,7 @@
-function [MaxDistortionFix, SignalChInt, SignalFourierPhaseShift,...
-    MaxDistortionFourierFix, EpsCoeffForce, SignalFourierFix,...
-    DistortionFourierFix, DistortionFourier, TimeInt] = CalculateSingle(Period,...
-    FreqProcess, TimeSim, SignalTimeFix,...
-    ColsRangeData, nAccel)
+function [Distortion, MaxDistortionFix, SignalChInt, FirstHarmonic, SignalFourierPhaseShift, TimeInt] = CalculateSingle(Period,...   
+     FreqProcess, TimeSim, SignalTimeFix, ColsRangeData, nAccel)
 
+% Calculate distortion
 % Interpolate time signal
 h = Period / 10 ^ 3; % Time step
 TimeInt = (0:h:Period)'; % Grid for interpolation
@@ -11,7 +9,6 @@ SignalChInt = interp1(TimeSim, SignalTimeFix, TimeInt, 'spline', 'extrap'); % In
 
 % Separation of harmonics
 DistortionFourierLength = floor(5000 / FreqProcess); % Harmonics number
-EpsCoeffForce.Base = 0.8; % Accuracy coefficient
 FreqFourier = 2 * pi / Period; % Fourier frequency
 FSeries = FourierSeries(SignalChInt, TimeInt, Period, ColsRangeData, DistortionFourierLength, 1);
 SignalFourierCoeffs = FSeries{1}; SignalFourier = FSeries{2}; SignalFourierPhaseShift = FSeries{3};
@@ -19,43 +16,14 @@ a0 = SignalFourierCoeffs(2, :); % First fourier coefficient
 a = SignalFourierCoeffs(3:DistortionFourierLength + 2, :); % Fourier cosinus coefficients
 b = SignalFourierCoeffs(DistortionFourierLength + 3:size(SignalFourierCoeffs, 1), :); % Fourier sinus coefficients
 
-FSeriesFix = FourierSeriesFix(a0, a, b, EpsCoeffForce.Base, TimeInt, FreqFourier, DistortionFourierLength); % Call FSerires function
-%SignalFourier_fix = FSeriesFix{1};
-MaxSignalFourier_fix = FSeriesFix{2}; % Format output data
-cFixIndex = FSeriesFix{3};
-for p = 1:size(a, 2)
-    for i = 1:length(cFixIndex{end}) % <-- Last number of accel == Last force accel ???
-        aFix(i, p) = a(cFixIndex{end}(i), p); % Fix fourier coeffs by ind of force accel.
-        bFix(i, p) = b(cFixIndex{end}(i), p);
-    end
-    for k = 1:length(TimeInt)
-        t = TimeInt(k); % Local time on this step
-        SignalFourierFix(k, p) = a0(1, p) + aFix(:, p)' * cos(t * FreqFourier .* cFixIndex{end}) + bFix(:, p)' * sin(t * FreqFourier .* cFixIndex{end}); % Full fourier series
-    end
-end
-
+FirstHarmonic = GetFirstHarmonic(a0, a, b, TimeInt, FreqFourier); % Call FSerires function
 % Calculating of distortions
 for i = ColsRangeData(1):ColsRangeData(2)
-    Distortion(:, i) = SignalChInt(:, i) - SignalFourierFix(:, i); % Finding the twist vector
-    MaxDistortion(i, :) = max(abs(Distortion(:, i))) / max(abs(SignalFourierFix(:))); % Maximum of distortions
-end
-
-% Fourier series for distortion
-FSeries = FourierSeries(Distortion, TimeInt, Period, ColsRangeData, DistortionFourierLength, 0); % Call FourierSeries function
-DistortionFourierCoeffs = FSeries{1}; DistortionFourier = FSeries{2}; % Result
-a0 = DistortionFourierCoeffs(2, :); % First fourier coefficient
-a = DistortionFourierCoeffs(3:DistortionFourierLength + 2, :); % Fourier cosinus coefficients
-b = DistortionFourierCoeffs(DistortionFourierLength + 3:size(DistortionFourierCoeffs, 1), :); % Fourier sinus coefficients
-
-EpsCoeffForce.Fourier = 1e-1; % Accuracy coefficient
-FSeriesFix = FourierSeriesFix(a0, a, b, EpsCoeffForce.Fourier, TimeInt, FreqFourier, DistortionFourierLength); % Call FSerires function for distortions
-DistortionFourierFix = FSeriesFix{1}; % MaxDistortionFourierFix = FSeriesFix{2}; % Format output data
-for p = 1:size(DistortionFourierFix, 2)
-    MaxDistortionFourierFix(p, :) = sum(abs(DistortionFourierFix(:, p))); % Average sum
+    Distortion(:, i) = SignalChInt(:, i) - FirstHarmonic(:, i); % Finding the twist vector
+    MaxDistortion(i, :) = max(abs(Distortion(:, i))) / max(abs(FirstHarmonic(:))); % Maximum of distortions
 end
 % Reduction of distortions from force sensor
 MaxDistortionFix = MaxDistortion(1:nAccel, :); % Base
-MaxDistortionFourierFix = MaxDistortionFourierFix(1:nAccel, :); % Fourier
 
 end
 

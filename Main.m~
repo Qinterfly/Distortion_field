@@ -2,24 +2,23 @@
 % =========================================================================
 %
 % Contributors: Lakiza Pavel, Zhukov Egor
-% Version: 0.6
-% Changes: - Fixed bugs with 
-%               
-%          
+% Version: 0.7
+% Changes: - Algorithm of distortions calculations is changed 
+%          - Added parsing for filenames
+%          - Improved search entry a element of compare tab in 
 %                                                                        
 % =========================================================================
 
-tic %starting time
-% profile on; %Turn profiler
-% Clean the workspace and variables
-clc; clear variables; close all;
+tic % Start timer
+% profile on; % Turn profiler
+clc; clear variables; close all; % Clean the workspace and variables
 
 %% ===================== Read-write constants =============================
 
 DIRNAME_GEOMETRY = 'Geometry/RibRRJ95';
-DIRNAME_SIGNALS = 'Signals/RibRRJ-95';
-DIRNAME_RESULTS = 'Results/RibRRJ-95';
-DIRNAME_FOR_SAVE_DISTORTION_FIELD = 'Distortion field/RibRRJ95';
+DIRNAME_SIGNALS = 'Signals/RibRRJ95';
+DIRNAME_RESULTS = 'Results/RibRRJ95';
+DIRNAME_FOR_SAVE_DISTORTION_FIELD = 'Distortion field/RibRRJ95/';
 LIBRARY_NAME = {'Export_fig'};
 
 %% =================== Preprocessing ======================================
@@ -51,15 +50,15 @@ end
 %                'AutoCompare' - auto compare all files in directory @DIRNAME_RESULTS by @FileNameCompare
 % -------------------------------------------------------------------------
 
-ModeCalculate = 'Single';  % Calculation types = ['Single', 'Compare', 'AutoSingle', 'AutoCompare']
+ModeCalculate = 'AutoCompare';  % Calculation types = ['Single', 'Compare', 'AutoSingle', 'AutoCompare']
 FileName = {'6,0Hz 12,8kHz G1 0,1g Cr1'}; % Name of the file with input data
 FileNameCompare = 'CompareRibRRJ.xlsx'; % Name of the file with compare table
 CoordName.Base = 'CoordinateRibRRJ95_'; % Base part of filename with cartesian coordinates of points
 CoordName.External = 'ExternalCoordinateRibRRJ95.xlsx'; % Name of file with cartesian coordinates of external geometry
 Channel = 1; %Data evaluation channel
 ChannelsDelNumb = []; %Define numbers of excluding channels (format: array of number of channel <= see Channels_name)
-ShowOption = {'Distortion'}; %Show figure params{'TimeSignal', 'Distortion', 'Lissage', 'DistortionFourier'}. When comparing signals of an option of display are inactive
-CoordActionNum = [1, -2]; % Numbers of coordinates axes for distortion calculation (X == 1, Y == 2, Z == 3) with sign.
+ShowOption = {'Distortion'}; %Show figure params{'TimeSignal', 'Distortion', 'Lissage'}. When comparing signals of an option of display are inactive
+CoordActionNum = [1, 2]; % Numbers of coordinates axes for distortion calculation (X == 1, Y == 2, Z == 3) with sign.
 
 %% ====================== Technical input =================================
 
@@ -105,16 +104,14 @@ if strcmp(ModeCalculate, 'Single') || strcmp(ModeCalculate, 'AutoSingle')
         
         % ========================= Calculating ===============================
         
-        [MaxDistortionFix, SignalChInt, SignalFourierPhaseShift,...
-            MaxDistortionFourierFix, EpsCoeffForce, SignalFourierFix,...
-            DistortionFourierFix, DistortionFourier, TimeInt] = CalculateSingle(Period,...
+        [Distortion, MaxDistortionFix, SignalChInt, FirstHarmonic, SignalFourierPhaseShift, TimeInt] = CalculateSingle(Period,...
             FreqProcess, TimeSim, SignalTimeFix, ColsRangeData, nAccel);
         
         % ========================= Saving results ============================
         
         % Assign filename for results
-        OutputFileName.Base = CreateOutputFileName(FileName, ChannelsDelNumb, EpsCoeffForce.Base, DIRNAME_SIGNALS);
-        OutputFileName.Fourier = CreateOutputFileName(FileName, ChannelsDelNumb, EpsCoeffForce.Fourier, DIRNAME_SIGNALS);
+        OutputFileName.Base = CreateOutputFileName(FileName, ChannelsDelNumb, DIRNAME_SIGNALS);
+        OutputFileName.Fourier = CreateOutputFileName(FileName, ChannelsDelNumb, DIRNAME_SIGNALS);
         % Save base distortion field (non-mesh)
         OutputOperate([DIRNAME_RESULTS, OutputFileName.Base], 'Distortion.txt', [Coord.Base(:, abs(CoordActionNum(1))),...
             Coord.Base(:, abs(CoordActionNum(2))), MaxDistortionFix], 'w');
@@ -124,16 +121,12 @@ if strcmp(ModeCalculate, 'Single') || strcmp(ModeCalculate, 'AutoSingle')
         for i = 1:length(ShowOption)
             switch ShowOption{i}
                 case 'TimeSignal' % Display the time signal for selected channel
-                    FigTimeSignal = PlotTimeSignal(TimeInt, SignalChInt, SignalFourierFix,...
-                        DistortionFourierFix, DistortionFourier, Channel);
+                    FigTimeSignal = PlotTimeSignal(TimeInt, SignalChInt, FirstHarmonic, Distortion, Channel);
                 case 'Distortion' % Display of distortion field
                     [FigDistortion, PushbuttonDistortion]= PlotDistortion(Coord, MaxDistortionFix, GridDensity, ...
                         AbsCoordActionNum, ContourNumber, OutputFileName, FillContourSign, ChannelsName);
                 case 'Lissage' % Display Lissage figure for selected channel
                     FigLissage = PlotLissage(SignalChInt, SignalFourierPhaseShift, ChannelsName, Channel);
-                case 'DistortionFourier' % Display of distortion fourier field
-                    [FigDistortion, PushbuttonDistortion]= PlotDistortion(Coord, MaxDistortionFourierFix, GridDensity, ...
-                        AbsCoordActionNum, ContourNumber, OutputFileName, FillContourSign, ChannelsName);
             end
         end
         % Save distortion field in AutoSingle mode
@@ -171,18 +164,17 @@ if strcmp(ModeCalculate, 'Compare') || strcmp(ModeCalculate, 'AutoCompare')
         Coord.Base(:, AbsCoordActionNum(1)) = Signal{i, j}(:, 1);
         Coord.Base(:, AbsCoordActionNum(2)) = Signal{i, j}(:, 2);
         % Calculate mesh for each signal
-        [XMesh, YMesh, DistortionSignal{i, j}] = MeshAndInterpolate2D(Coord, Signal{i, j}(:, 3),...
-            GridDensity, AbsCoordActionNum); %Mesh grid and interpolate resulting function
+        [XMesh, YMesh, DistortionSignal{i, j}] = MeshAndInterpolate2D(Coord, Signal{i, j}(:, 3), GridDensity, AbsCoordActionNum); %Mesh grid and interpolate resulting function
         end
     end
     
     for i = 1:FileNameSize(1)
         for j = 1:FileNameSize(2) - 1
-            OutputFileName = [FileName{i, j} ' | ' FileName{i, j + 1}]; % Assign filename for results
+            OutputFileName = [FileName{i, j} ' & ' FileName{i, j + 1}]; % Assign filename for results
             [FigCompare, PushbuttonCompare] = PlotCompareDistortion(Coord, XMesh, YMesh, abs(DistortionSignal{i, j} - DistortionSignal{i, j + 1}),...
                 OutputFileName, ScreenSize, ContourNumber, FillContourSign, AbsCoordActionNum);
             % Save distortion field in AutoCompare mode
-            if strcmp(ModeCalculate, 'AutoCompare')
+            if strcmp(ModeCalculate, 'Compare') || strcmp(ModeCalculate, 'AutoCompare') 
                 PushbuttonCompare.Callback(FigCompare, [], DIRNAME_SIGNALS, strcat(DIRNAME_FOR_SAVE_DISTORTION_FIELD, ModeCalculate, '/')); %Autosave figure
                 close(FigCompare); %Close figure
             end

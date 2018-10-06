@@ -22,7 +22,7 @@ try
     end
     figHandle.PaperPositionMode = 'auto'; %Set the size of saving figure
     PushbuttonHandle.Visible = 'off'; %Hide ui pushbutton
-    export_fig(FileName,'-dpng') %Save figure
+    export_fig(FileName, '-dpng') %Save figure
     % print(fig,FileName,'-dpng','-r0','-noui'); %Save figure
     set(gcbf,'Position', OrigSize); %Set back to original dimensions
     PushbuttonHandle.Visible = 'on'; %Show ui pushbutton

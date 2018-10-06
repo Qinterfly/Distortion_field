@@ -9,11 +9,16 @@ ShiftCompareTab = 2; % Row shift of compare tab
 
 [dirContent, ~] = GetDirContent(DIRNAME_RESULTS, '-d'); % Get directory content and ID by type of file
 
-% Sort dir by compare tab
+% Search for the best entry of the elements of the compare tab
 for i = ShiftCompareTab:size(CompareTab, 1)
     for j = 1:length(dirContent)
-        if contains(dirContent{j}, CompareTab{i, nColCompare}) % Index #2: comparing file name
-            dirContentSort{i - 1} = dirContent{j};
+        if prod(~isnan(CompareTab{i, nColCompare})) % Check NaN value
+            if contains(dirContent{j}, CompareTab{i, nColCompare}) % Find entry of a element compare tab in dir content
+                tRes = strrep(dirContent{j}, CompareTab{i, nColCompare}, ''); % Residue between directory content and element of the compare tab
+                if isempty(tRes) || strcmp(tRes(1), ' ') % Check best fitting
+                    dirContentSort{i - ShiftCompareTab + 1} = dirContent{j};
+                end
+            end
         end
     end
 end
