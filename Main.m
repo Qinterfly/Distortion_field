@@ -51,7 +51,7 @@ end
 %                'AutoCompare' - auto compare all files in directory @DIRNAME_RESULTS by @FileNameCompare
 % -------------------------------------------------------------------------
 
-ModeCalculate = 'AutoSingle';  % Calculation types = ['Single', 'Compare', 'AutoSingle', 'AutoCompare']
+ModeCalculate = 'AutoCompare';  % Calculation types = ['Single', 'Compare', 'AutoSingle', 'AutoCompare']
 FileName = {'6,0Hz 12,8kHz G1 0,1g Cr1'}; % Name of the file with input data
 FileNameCompare = 'CompareRibRRJ.xlsx'; % Name of the file with compare table
 CoordName.Base = 'CoordinateRibRRJ95_'; % Base part of filename with cartesian coordinates of points
@@ -161,6 +161,7 @@ if strcmp(ModeCalculate, 'Compare') || strcmp(ModeCalculate, 'AutoCompare')
     for i = 1:FileNameSize(1)
         for j = 1:FileNameSize(2)
         Signal{i, j} = OutputOperate(DIRNAME_RESULTS, [FileName{i, j}, '/Distortion.txt'], 0, 'r'); %Read signals
+        Coord.Base = zeros(size(Signal{i, j}, 1), 3); % Allocate memory for coordinates
         % Slice signal by coordinate number set
         Coord.Base(:, AbsCoordActionNum(1)) = Signal{i, j}(:, 1);
         Coord.Base(:, AbsCoordActionNum(2)) = Signal{i, j}(:, 2);
