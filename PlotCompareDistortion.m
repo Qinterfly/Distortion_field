@@ -11,7 +11,7 @@ xlabel('x, mm', 'Fontsize', 16, 'BackgroundColor', 'w');
 ylabel('y, mm', 'Fontsize', 16, 'BackgroundColor', 'w', 'Rotation', 90);
 set(gca,'Fontsize', 15);
 InverseContour(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), FillContourSign); %Inverse contour filling
-plot(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), 'LineWidth', 2,'Color','r') %Plot external contour
+plot(Coord.External(:, AbsCoordActionNum(1)), Coord.External(:, AbsCoordActionNum(2)), 'LineWidth', 2, 'Color','r') %Plot external contour
 cb = colorbar('Fontsize', 15); cb.Label.FontSize = 23; cb.Label.String = '\xi'; %Show gradient of colors
 Pushbutton = uicontrol('Style', 'pushbutton',... %Create popupmenu
     'String', 'Save figure',...

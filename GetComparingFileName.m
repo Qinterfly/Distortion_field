@@ -16,7 +16,7 @@ for i = ShiftCompareTab:size(CompareTab, 1)
             if contains(dirContent{j}, CompareTab{i, nColCompare}) % Find entry of a element compare tab in dir content
                 tRes = strrep(dirContent{j}, CompareTab{i, nColCompare}, ''); % Residue between directory content and element of the compare tab
                 if isempty(tRes) || strcmp(tRes(1), ' ') % Check best fitting
-                    dirContentSort{i - ShiftCompareTab + 1} = dirContent{j};
+                    dirContentSort{CompareTab{i, 1}} = dirContent{j};
                 end
             end
         end

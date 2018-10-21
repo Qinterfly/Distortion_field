@@ -17,13 +17,16 @@ a = SignalFourierCoeffs(3:DistortionFourierLength + 2, :); % Fourier cosinus coe
 b = SignalFourierCoeffs(DistortionFourierLength + 3:size(SignalFourierCoeffs, 1), :); % Fourier sinus coefficients
 
 FirstHarmonic = GetFirstHarmonic(a0, a, b, TimeInt, FreqFourier); % Call FSerires function
+
 % Calculating of distortions
 for i = ColsRangeData(1):ColsRangeData(2)
     Distortion(:, i) = SignalChInt(:, i) - FirstHarmonic(:, i); % Finding the twist vector
-    MaxDistortion(i, :) = max(abs(Distortion(:, i))) / max(abs(FirstHarmonic(:))); % Maximum of distortions
+    MaxDistortion(i, :) = max(abs(Distortion(:, i))); % Maximum of distortions 
 end
+
 % Reduction of distortions from force sensor
 MaxDistortionFix = MaxDistortion(1:nAccel, :); % Base
+MaxDistortionFix = MaxDistortionFix ./ max(MaxDistortionFix); % Normalize vector of a distortions by maximum [ Another variant : abs(max(FirstHarmonic(:))) ]
 
 end
 
