@@ -1,8 +1,8 @@
 function FileName = GetComparingFileName(FileNameCompare, DIRNAME_RESULTS)
 % Get filenames matrix for comparing signals
 
-nColCompare = 2; % Сolumn number of indicies of comparing signals
-nColResidue = 4; % Сolumn number of indicies of residue signals
+nColCompare = 2; % Column number of indicies of comparing signals
+nColResidue = 4; % Column number of indicies of residue signals
 ShiftCompareTab = 2; % Row shift of compare tab
     
 [~, ~, CompareTab] = xlsread(FileNameCompare); %Reading compare table

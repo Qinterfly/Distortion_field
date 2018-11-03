@@ -1,4 +1,4 @@
-function Result = FourierSeries(SignalChInt, TimeInt, Period, ColsRangeData, LengthSeries, ShiftInd)
+function [SignalFourier, SignalFourierPhaseShift] = FourierSeries(SignalChInt, TimeInt, Period, ColsRangeData, LengthSeries, ShiftInd)
 % Evalute fourier series for interpolated signal
 
 FreqFourier = 2 * pi / Period; % Fourier frequency
@@ -18,11 +18,6 @@ for i = ColsRangeData(1):ColsRangeData(2)
             SignalFourierPhaseShift(k, i) = a0 + a * cos(t * FreqFourier * s - pi/2) + b * sin(t * FreqFourier * s - pi/2); % Full fourier series shifted
         end
     end
-    FourierCoeffs(:, i) = [FreqFourier, a0, a, b]'; % Write fourier coeffs
-end
-Result{1} = FourierCoeffs; Result{2} = SignalFourier; % Output data
-if ShiftInd == 1 % Print phase shifted fourier series
-    Result{3} = SignalFourierPhaseShift;
 end
 
 end

@@ -2,10 +2,10 @@
 % =========================================================================
 %
 % Contributors: Lakiza Pavel, Zhukov Egor
-% Version: 0.8
-% Changes: - Modes of plotting signals are changed.
-%          - Fixed bugs with creating text labels for comparing signals.
-%          - Normalize mode of signal is changed.
+% Version: 0.9
+% Changes: - Function of ploting Lissage's figures is changed.
+%          - GetFirstHarmonic function is deleted. 
+%          - Excess functionality from CalculateSingle function are deleted.
 %                                                                        
 % =========================================================================
 
@@ -17,7 +17,7 @@ clc; clear variables; close all; % Clean the workspace and variables
 
 DIRNAME_GEOMETRY = 'Geometry/';
 DIRNAME_SIGNALS = 'Signals/RRJFuzPanel/Str2';
-DIRNAME_RESULTS = 'Results/RRJFuzPanelStr2';
+DIRNAME_RESULTS = 'Results/RRJFuzPanel/Str2';
 DIRNAME_FOR_SAVE_DISTORTION_FIELD = 'Distortion field/RRJFuzPanelStr2';
 LIBRARY_NAME = {'Export_fig'};
 
@@ -50,14 +50,14 @@ end
 %                'AutoCompare' - auto compare all files in directory @DIRNAME_RESULTS by @FileNameCompare
 % -------------------------------------------------------------------------
 
-ModeCalculate = 'AutoCompare';  % Calculation types = ['Single', 'Compare', 'AutoSingle', 'AutoCompare']
-FileName = {'15,0Hz 12,8kHz G1 0,1g Nd'}; % Name of the file with input data
+ModeCalculate = 'Single';  % Calculation types = ['Single', 'Compare', 'AutoSingle', 'AutoCompare']
+FileName = {'33,5Hz 25,6kHz Str2-75%Polka+BTr G3 1,5g'}; % Name of the file with input data
 FileNameCompare = 'RRJFuzPanelCompare2.xlsx'; % Name of the file with compare table
 CoordName.Base = 'RRJFuzPanelCoord_'; % Base part of filename with cartesian coordinates of points
 CoordName.External = 'RRJFuzPanelExternCoord.xlsx'; % Name of file with cartesian coordinates of external geometry
 Channel = 1; %Data evaluation channel
 ChannelsDelNumb = []; %Define numbers of excluding channels (format: array of number of channel <= see Channels_name)
-ShowOption = {'Distortion'}; %Show figure params{'TimeSignal', 'Distortion', 'Lissage'}. When comparing signals of an option of display are inactive
+ShowOption = {'TimeSignal'}; %Show figure params{'TimeSignal', 'Distortion', 'Lissage'}. When comparing signals of an option of display are inactive
 CoordActionNum = [1, -3]; % Numbers of coordinates axes for distortion calculation (X == 1, Y == 2, Z == 3) with sign.
 
 %% ====================== Technical input =================================
@@ -88,24 +88,26 @@ if strcmp(ModeCalculate, 'Single') || strcmp(ModeCalculate, 'AutoSingle')
         CoordName.External = CoordName.ExternalIn; % Set input base name of external coordinate file
         ResultsSingle = ReadInputFile({FileTab{i}, CoordName, DIRNAME_SIGNALS, DIRNAME_GEOMETRY, PhysFactor,...
             CoordActionNum, StartRangeRead, ChannelsDelNumb}, 'Single');
+        
         % -- Set results ------------------------------------------------------
         FileName = ResultsSingle{1};
         CoordName = ResultsSingle{2};
         AbsCoordActionNum = ResultsSingle{3};
         Period = ResultsSingle{4};
         FreqProcess = ResultsSingle{5};
-        TimeSim = ResultsSingle{6};
-        SignalTimeFix = ResultsSingle{7};
-        ColsRangeData = ResultsSingle{8};
-        nAccel = ResultsSingle{9};
-        Coord = ResultsSingle{10};
-        ChannelsName = ResultsSingle{11};
+        ThroughpFreq = ResultsSingle{6};
+        TimeSim = ResultsSingle{7};
+        SignalTimeFix = ResultsSingle{8};
+        ColsRangeData = ResultsSingle{9};
+        nAccel = ResultsSingle{10};
+        Coord = ResultsSingle{11};
+        ChannelsName = ResultsSingle{12};
         % ---------------------------------------------------------------------
         
         % ========================= Calculating ===============================
         
-        [Distortion, MaxDistortionFix, SignalChInt, FirstHarmonic, SignalFourierPhaseShift, TimeInt] = CalculateSingle(Period,...
-            FreqProcess, TimeSim, SignalTimeFix, ColsRangeData, nAccel);
+        [Distortion, MaxDistortionFix, SignalChInt, FirstHarmonic, FirstHarmonicPhaseShift, TimeInt] = CalculateSingle(Period,...
+            ThroughpFreq, TimeSim, SignalTimeFix, ColsRangeData, nAccel);
         
         % ========================= Saving results ============================
         
@@ -124,13 +126,14 @@ if strcmp(ModeCalculate, 'Single') || strcmp(ModeCalculate, 'AutoSingle')
                 case 'Distortion' % Display of distortion field
                     [FigDistortion, PushbuttonDistortion]= PlotDistortion(Coord, MaxDistortionFix, GridDensity, ...
                         AbsCoordActionNum, ContourNumber, OutputFileName, FillContourSign, ChannelsName);
+                    PushbuttonDistortion.Callback(FigDistortion, [], DIRNAME_SIGNALS, strcat(DIRNAME_FOR_SAVE_DISTORTION_FIELD, ModeCalculate, '/')); % Autosave distortion field
                 case 'Lissage' % Display Lissage figure for selected channel
-                    FigLissage = PlotLissage(SignalChInt, SignalFourierPhaseShift, ChannelsName, Channel);
+                    FigLissage = PlotLissage(SignalChInt, FirstHarmonicPhaseShift, ChannelsName, Channel);
             end
         end
         % Save distortion field in AutoSingle mode
-        if strcmp(ModeCalculate, 'Single') || strcmp(ModeCalculate, 'AutoSingle')
-            PushbuttonDistortion.Callback(FigDistortion, [], DIRNAME_SIGNALS, strcat(DIRNAME_FOR_SAVE_DISTORTION_FIELD, ModeCalculate, '/')); %Autosave figure
+        if strcmp(ModeCalculate, 'AutoSingle')
+            PushbuttonDistortion.Callback(FigDistortion, [], DIRNAME_SIGNALS, strcat(DIRNAME_FOR_SAVE_DISTORTION_FIELD, ModeCalculate, '/')); % Autosave figure
             close(FigDistortion);
         end
     end
@@ -176,7 +179,7 @@ if strcmp(ModeCalculate, 'Compare') || strcmp(ModeCalculate, 'AutoCompare')
             % Save distortion field in AutoCompare mode
             if strcmp(ModeCalculate, 'Compare') || strcmp(ModeCalculate, 'AutoCompare') 
                 PushbuttonCompare.Callback(FigCompare, [], DIRNAME_SIGNALS, strcat(DIRNAME_FOR_SAVE_DISTORTION_FIELD, ModeCalculate, '/')); %Autosave figure
-                close(FigCompare); %Close figure
+                close(FigCompare); % Close figure
             end
         end
     end

@@ -3,6 +3,7 @@ function Output = ReadInputFile(Input, Option)
 
 switch Option
     case 'Single'
+        
         % -- Get parameters from container --------------------------------        
         FileName = Input{1};
         CoordName = Input{2};
@@ -24,9 +25,11 @@ switch Option
         Coord.Base = GetCoordinates(CoordName.Base, PhysFactor, CoordActionNum); % Cartesian coordinate of inner points
         Coord.External = GetCoordinates(CoordName.External, PhysFactor, CoordActionNum); % Cartesian coordinate of external points
         
+        % Calculate dimensions of the input data
         MeasurmentNumber = ceil(Period * ThroughpFreq); % Number of measurement points
         nAccel = size(Signal_0.y_values.values, 2); % Number of accelerometers
         RowsRangeData = [StartRangeRead; MeasurmentNumber + StartRangeRead - 1]; ColsRangeData = [1; nAccel]; % Range reading data
+        
         % Formation of data arrays
         SignalTimeGlob = Signal_0.y_values.values; % Reading the time signal from Signal_0
         ChannelsName = Signal_0.function_record.name'; % Reading channel names from Signal_0
@@ -38,29 +41,34 @@ switch Option
         ColsRangeData(2, 1) = ColsRangeData(2, 1) + nForceTrans; % Add increment
         SignalTimeFix = SignalTimeGlob(RowsRangeData(1, 1):RowsRangeData(2, 1), ColsRangeData(1,1):ColsRangeData(2,1)); % Reading a of the time signal
         
+        % Correct format of Channels_name
         for i = 1:length(ChannelsName)
-            ChannelsName{i} = ChannelsName{i}'; % Correct format of Channels_name
+            ChannelsName{i} = ChannelsName{i}'; 
             ChannelsName{i} = char(ChannelsName{i});
         end
-        TimeSim = zeros(MeasurmentNumber,1); % Create array of zeros
-        for i = 1:MeasurmentNumber
-            TimeSim(i,1) = 1 / ThroughpFreq * (i - 1); % Simulation time array
-        end
-        if nForceTrans > 1   % Correct format of Channels_name
+        
+        % Add channel names of the accel force
+        if nForceTrans > 1
             for i = 1:nForceTrans
                 ChannelsName{nAccel + i} = ChannelsName{nAccel + i}'; %Last AccelForce
             end
         end
         
+        % Create simulation time array
+        TimeSim = zeros(MeasurmentNumber,1); % Create array of zeros
+        for i = 1:MeasurmentNumber
+            TimeSim(i, 1) = 1 / ThroughpFreq * (i - 1); % Simulation time array
+        end
+        
         % Exclude selected channels
         if ChannelsDelNumb
             ChannelsDelNumb = sort(ChannelsDelNumb, 'descend'); % Sort excluding array
-            nAccel = nAccel - length(ChannelsDelNumb); % Correct numbers of accelerometers
+            nAccel = nAccel - length(ChannelsDelNumb); % Correct numbers of the accelerometers
             ColsRangeData(2) = nAccel; % Correct range of data
-            for i = 1:length(ChannelsDelNumb) % Correct input data
-                Coord.Base(ChannelsDelNumb(i), :) = [];
-                ChannelsName(ChannelsDelNumb(i)) = [];
-                SignalTimeFix(:, ChannelsDelNumb(i)) = [];
+            for i = 1:length(ChannelsDelNumb) % Correct of the input data
+                Coord.Base(ChannelsDelNumb(i), :) = []; % Nullification of the cartesian coordinates of the points
+                ChannelsName(ChannelsDelNumb(i)) = []; % Nullification of the channel names
+                SignalTimeFix(:, ChannelsDelNumb(i)) = []; % Nulification of the time signals
             end
         end
         AbsCoordActionNum = abs(CoordActionNum); % Absolute value of coordinates numbers
@@ -71,14 +79,17 @@ switch Option
         Output{3} = AbsCoordActionNum;
         Output{4} = Period;
         Output{5} = FreqProcess;
-        Output{6} = TimeSim;
-        Output{7} = SignalTimeFix;
-        Output{8} = ColsRangeData;
-        Output{9} = nAccel;
-        Output{10} = Coord;
-        Output{11} = ChannelsName;        
+        Output{6} = ThroughpFreq;
+        Output{7} = TimeSim;
+        Output{8} = SignalTimeFix;
+        Output{9} = ColsRangeData;
+        Output{10} = nAccel;
+        Output{11} = Coord;
+        Output{12} = ChannelsName;        
         % -----------------------------------------------------------------
+        
     case 'Compare'
+        
         % -- Get parameters from container --------------------------------        
         CoordName = Input{1};
         DIRNAME_GEOMETRY = Input{2};
@@ -89,10 +100,10 @@ switch Option
         ModeCalculate = Input{7};
         % -----------------------------------------------------------------     
         
-        %Read contour cartesian coordinates
-        Coord.External = GetCoordinates(strcat(DIRNAME_GEOMETRY, CoordName.External), PhysFactor, CoordActionNum); %Cartesian coordinate of external points
-        if strcmp(ModeCalculate, 'AutoCompare')
-            FileName = GetComparingFileName(strcat(DIRNAME_GEOMETRY, FileNameCompare), DIRNAME_RESULTS);
+        % Read contour cartesian coordinates
+        Coord.External = GetCoordinates(strcat(DIRNAME_GEOMETRY, CoordName.External), PhysFactor, CoordActionNum); % Cartesian coordinate of external points
+        if strcmp(ModeCalculate, 'AutoCompare') % Check AutoCompare mode
+            FileName = GetComparingFileName(strcat(DIRNAME_GEOMETRY, FileNameCompare), DIRNAME_RESULTS); % Write file names of the comparing signals
         else
             FileName = [];
         end
